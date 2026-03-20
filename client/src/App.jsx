@@ -452,7 +452,7 @@ function App() {
               {history && !historyLoading && history.totalAttempts > 0 && (
                 <div className="rounded-lg border border-slate-200 bg-white p-4">
                   <h2 className="text-sm font-medium text-slate-700 mb-3">
-                    Progress over time
+                    Attempt History
                   </h2>
                   <p className="text-xs text-slate-500 mb-3">
                     {history.totalAttempts} attempt

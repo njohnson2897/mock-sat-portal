@@ -58,7 +58,7 @@ export const questions = [
     ],
     correctAnswer: 'B',
     explanation:
-      'The passage emphasizes the need for infrastructure development to support renewable energy growth.',
+      'The author would most likely argue that the need for infrastructure development to support renewable energy growth.',
     skillTag: 'Inference',
   },
   {
