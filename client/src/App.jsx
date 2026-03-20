@@ -59,6 +59,7 @@ function App() {
     } else {
       setCurrentSectionIndex((i) => i + 1)
       setCurrentQuestionIndex(0)
+      setView('intermission')
     }
   }, [view, remainingSeconds, selectedMode, currentSectionIndex])
 
@@ -86,6 +87,9 @@ function App() {
     setResultsError(null)
     setUnansweredWarning(null)
     setRemainingSeconds(null)
+    setHistory(null)
+    setHistoryError(null)
+    setHistoryLoading(false)
     setView('assessment')
   }
 
@@ -122,6 +126,11 @@ function App() {
     setUnansweredWarning(null)
     setCurrentSectionIndex((i) => i + 1)
     setCurrentQuestionIndex(0)
+    setView('intermission')
+  }
+
+  const handleStartNextSection = () => {
+    setView('assessment')
   }
 
   const handleFinish = () => {
@@ -170,6 +179,41 @@ function App() {
 
   const handleOpenReview = () => setView('review')
   const handleBackToResults = () => setView('completion')
+
+  if (view === 'intermission') {
+    const mode = MODES.find((m) => m.value === selectedMode)
+    const sectionKeys = mode.sectionKeys
+    const completedSectionIndex = currentSectionIndex - 1
+    const completedSection = sections.find(
+      (s) => s.key === sectionKeys[completedSectionIndex]
+    )
+    const nextSection = sections.find(
+      (s) => s.key === sectionKeys[currentSectionIndex]
+    )
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <main className="mx-auto max-w-xl px-6 py-16">
+          <h1 className="text-2xl font-semibold text-slate-800">
+            {completedSection?.title ?? 'Section'} complete
+          </h1>
+          <p className="mt-4 text-slate-600">
+            Real testing flows often include a short break between sections. Take
+            a moment if you like, then continue when ready.
+          </p>
+          <p className="mt-4 font-medium text-slate-800">
+            Next: {nextSection?.title ?? 'Next section'}
+          </p>
+          <button
+            type="button"
+            onClick={handleStartNextSection}
+            className="mt-8 w-full rounded-lg bg-slate-800 px-4 py-3 font-medium text-white hover:bg-slate-700"
+          >
+            Start {nextSection?.title ?? 'next section'}
+          </button>
+        </main>
+      </div>
+    )
+  }
 
   if (view === 'review') {
     const mode = MODES.find((m) => m.value === selectedMode)
@@ -390,7 +434,7 @@ function App() {
                   </h2>
                   <p className="mt-1 text-slate-800">
                     Prioritize practice in <strong>{results.weakestSkill}</strong>
-                    —it has the most room for improvement.
+                    , as it has the most room for improvement.
                   </p>
                 </div>
               )}
@@ -523,7 +567,7 @@ function App() {
                 onClick={handleBack}
                 className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
-                Back
+                Exit Assessment
               </button>
             </div>
           </div>
