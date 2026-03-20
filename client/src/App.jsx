@@ -1,5 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { sections, questions } from './data/mockAssessment.js'
+
+function formatTime(seconds) {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+}
 
 const MODES = [
   { value: 'full', label: 'Full Practice Test', sectionKeys: ['reading-writing', 'math'] },
@@ -13,6 +19,40 @@ function App() {
   const [answers, setAnswers] = useState({})
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0)
+  const [remainingSeconds, setRemainingSeconds] = useState(null)
+
+  // Sync timer to current section duration when entering assessment or changing section
+  useEffect(() => {
+    if (view !== 'assessment' || selectedMode == null) return
+    const mode = MODES.find((m) => m.value === selectedMode)
+    const sectionKeys = mode.sectionKeys
+    const currentSectionKey = sectionKeys[currentSectionIndex]
+    const section = sections.find((s) => s.key === currentSectionKey)
+    if (section) setRemainingSeconds(section.durationSeconds)
+  }, [view, currentSectionIndex, selectedMode])
+
+  // Countdown every second
+  useEffect(() => {
+    if (view !== 'assessment' || remainingSeconds == null || remainingSeconds <= 0) return
+    const id = setInterval(() => {
+      setRemainingSeconds((prev) => Math.max(0, prev - 1))
+    }, 1000)
+    return () => clearInterval(id)
+  }, [view, remainingSeconds])
+
+  // When timer hits zero, advance section or finish
+  useEffect(() => {
+    if (view !== 'assessment' || remainingSeconds !== 0) return
+    const mode = MODES.find((m) => m.value === selectedMode)
+    const sectionKeys = mode.sectionKeys
+    const isLastSection = currentSectionIndex === sectionKeys.length - 1
+    if (isLastSection) {
+      setView('completion')
+    } else {
+      setCurrentSectionIndex((i) => i + 1)
+      setCurrentQuestionIndex(0)
+    }
+  }, [view, remainingSeconds, selectedMode, currentSectionIndex])
 
   const handleStart = () => {
     if (!selectedMode) return
@@ -82,13 +122,24 @@ function App() {
             <h1 className="text-lg font-semibold text-slate-800">
               {section.title}
             </h1>
-            <button
-              type="button"
-              onClick={handleBack}
-              className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-            >
-              Back
-            </button>
+            <div className="flex items-center gap-4">
+              {remainingSeconds != null && (
+                <span
+                  className={`tabular-nums font-medium ${
+                    remainingSeconds <= 60 ? 'text-amber-600' : 'text-slate-700'
+                  }`}
+                >
+                  {formatTime(remainingSeconds)}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={handleBack}
+                className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Back
+              </button>
+            </div>
           </div>
 
           <div className="flex gap-8">
