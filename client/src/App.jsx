@@ -149,6 +149,133 @@ function App() {
     setAnswers((prev) => ({ ...prev, [questionId]: key }))
   }
 
+  const handleOpenReview = () => setView('review')
+  const handleBackToResults = () => setView('completion')
+
+  if (view === 'review') {
+    const mode = MODES.find((m) => m.value === selectedMode)
+    const sectionKeys = mode.sectionKeys
+
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <main className="mx-auto max-w-2xl px-6 py-8">
+          <div className="mb-6 flex items-center justify-between">
+            <h1 className="text-xl font-semibold text-slate-800">
+              Review Answers
+            </h1>
+            <button
+              type="button"
+              onClick={handleBackToResults}
+              className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Back to Results
+            </button>
+          </div>
+
+          <div className="space-y-10">
+            {sectionKeys.map((sectionKey) => {
+              const section = sections.find((s) => s.key === sectionKey)
+              const sectionQuestions = questions.filter(
+                (q) => q.sectionKey === sectionKey
+              )
+              return (
+                <div key={sectionKey}>
+                  <h2 className="mb-4 text-lg font-medium text-slate-800">
+                    {section.title}
+                  </h2>
+                  <div className="space-y-6">
+                    {sectionQuestions.map((q) => {
+                      const selectedAnswer = answers[q.id]
+                      const isUnanswered = selectedAnswer == null
+                      const isCorrect =
+                        !isUnanswered && selectedAnswer === q.correctAnswer
+                      const selectedOption = q.options.find(
+                        (o) => o.key === selectedAnswer
+                      )
+                      const correctOption = q.options.find(
+                        (o) => o.key === q.correctAnswer
+                      )
+
+                      return (
+                        <div
+                          key={q.id}
+                          className={`rounded-lg border p-5 ${
+                            isUnanswered
+                              ? 'border-amber-200 bg-amber-50/50'
+                              : isCorrect
+                              ? 'border-slate-200 bg-white'
+                              : 'border-red-200 bg-red-50/50'
+                          }`}
+                        >
+                          <div className="mb-3 flex items-center justify-between">
+                            <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                              {q.skillTag}
+                            </span>
+                            {isUnanswered ? (
+                              <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                                Unanswered
+                              </span>
+                            ) : isCorrect ? (
+                              <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
+                                Correct
+                              </span>
+                            ) : (
+                              <span className="rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
+                                Incorrect
+                              </span>
+                            )}
+                          </div>
+                          <p className="mb-4 text-slate-800 leading-relaxed">
+                            {q.prompt}
+                          </p>
+                          <div className="space-y-2 text-sm">
+                            {isUnanswered ? (
+                              <p className="text-amber-700">
+                                You did not answer this question.
+                              </p>
+                            ) : (
+                              <p className="text-slate-600">
+                                <span className="font-medium text-slate-700">
+                                  Your answer:
+                                </span>{' '}
+                                {selectedOption
+                                  ? `${selectedAnswer}. ${selectedOption.text}`
+                                  : selectedAnswer}
+                              </p>
+                            )}
+                            <p className="text-slate-600">
+                              <span className="font-medium text-emerald-700">
+                                Correct answer:
+                              </span>{' '}
+                              {correctOption
+                                ? `${q.correctAnswer}. ${correctOption.text}`
+                                : q.correctAnswer}
+                            </p>
+                          </div>
+                          <p className="mt-4 border-t border-slate-200 pt-4 text-sm text-slate-600 leading-relaxed">
+                            {q.explanation}
+                          </p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={handleBackToResults}
+            className="mt-10 w-full rounded-lg border border-slate-300 bg-white px-4 py-3 font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Back to Results
+          </button>
+        </main>
+      </div>
+    )
+  }
+
   if (view === 'completion') {
     const mode = MODES.find((m) => m.value === selectedMode)
     return (
@@ -249,13 +376,22 @@ function App() {
                 </div>
               )}
 
-              <button
-                type="button"
-                onClick={handleBack}
-                className="w-full rounded-lg bg-slate-800 px-4 py-3 font-medium text-white hover:bg-slate-700"
-              >
-                Back to Setup
-              </button>
+              <div className="flex flex-col gap-3">
+                <button
+                  type="button"
+                  onClick={handleOpenReview}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Review Answers
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  className="w-full rounded-lg bg-slate-800 px-4 py-3 font-medium text-white hover:bg-slate-700"
+                >
+                  Back to Setup
+                </button>
+              </div>
             </div>
           )}
 
