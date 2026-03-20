@@ -20,6 +20,7 @@ function App() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0)
   const [remainingSeconds, setRemainingSeconds] = useState(null)
+  const [unansweredWarning, setUnansweredWarning] = useState(null)
 
   // Sync timer to current section duration when entering assessment or changing section
   useEffect(() => {
@@ -40,9 +41,10 @@ function App() {
     return () => clearInterval(id)
   }, [view, remainingSeconds])
 
-  // When timer hits zero, advance section or finish
+  // When timer hits zero, advance section or finish (no unanswered warning)
   useEffect(() => {
     if (view !== 'assessment' || remainingSeconds !== 0) return
+    setUnansweredWarning(null)
     const mode = MODES.find((m) => m.value === selectedMode)
     const sectionKeys = mode.sectionKeys
     const isLastSection = currentSectionIndex === sectionKeys.length - 1
@@ -67,12 +69,46 @@ function App() {
   }
 
   const handleNextSection = () => {
+    setUnansweredWarning(null)
     setCurrentSectionIndex((i) => i + 1)
     setCurrentQuestionIndex(0)
   }
 
   const handleFinish = () => {
+    setUnansweredWarning(null)
     setView('completion')
+  }
+
+  const handleAttemptNextSection = () => {
+    const mode = MODES.find((m) => m.value === selectedMode)
+    const sectionKeys = mode.sectionKeys
+    const currentSectionKey = sectionKeys[currentSectionIndex]
+    const sectionQuestions = questions.filter((q) => q.sectionKey === currentSectionKey)
+    const unansweredCount = sectionQuestions.filter((q) => !(q.id in answers)).length
+    if (unansweredCount > 0) {
+      setUnansweredWarning({ action: 'nextSection', unansweredCount })
+    } else {
+      handleNextSection()
+    }
+  }
+
+  const handleAttemptFinish = () => {
+    const mode = MODES.find((m) => m.value === selectedMode)
+    const sectionKeys = mode.sectionKeys
+    const currentSectionKey = sectionKeys[currentSectionIndex]
+    const sectionQuestions = questions.filter((q) => q.sectionKey === currentSectionKey)
+    const unansweredCount = sectionQuestions.filter((q) => !(q.id in answers)).length
+    if (unansweredCount > 0) {
+      setUnansweredWarning({ action: 'finish', unansweredCount })
+    } else {
+      handleFinish()
+    }
+  }
+
+  const handleConfirmProceed = () => {
+    if (unansweredWarning?.action === 'nextSection') handleNextSection()
+    else if (unansweredWarning?.action === 'finish') handleFinish()
+    setUnansweredWarning(null)
   }
 
   const handleSelectAnswer = (questionId, key) => {
@@ -112,7 +148,6 @@ function App() {
     const totalQuestions = sectionQuestions.length
     const isFirstQuestion = currentQuestionIndex === 0
     const isLastQuestion = currentQuestionIndex === totalQuestions - 1
-    const isLastSection = currentSectionIndex === sectionKeys.length - 1
     const hasNextSection = currentSectionIndex < sectionKeys.length - 1
 
     return (
@@ -190,7 +225,7 @@ function App() {
                   hasNextSection ? (
                     <button
                       type="button"
-                      onClick={handleNextSection}
+                      onClick={handleAttemptNextSection}
                       className="rounded-lg bg-slate-800 px-4 py-2 font-medium text-white hover:bg-slate-700"
                     >
                       Continue to Next Section
@@ -198,7 +233,7 @@ function App() {
                   ) : (
                     <button
                       type="button"
-                      onClick={handleFinish}
+                      onClick={handleAttemptFinish}
                       className="rounded-lg bg-slate-800 px-4 py-2 font-medium text-white hover:bg-slate-700"
                     >
                       Finish Assessment
@@ -218,6 +253,36 @@ function App() {
                   </button>
                 )}
               </div>
+
+              {unansweredWarning && (
+                <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                  <p className="text-sm font-medium text-slate-800">
+                    {unansweredWarning.unansweredCount} question
+                    {unansweredWarning.unansweredCount !== 1 ? 's' : ''} in this
+                    section {unansweredWarning.unansweredCount !== 1 ? 'are' : 'is'}{' '}
+                    unanswered.
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Are you sure you want to continue?
+                  </p>
+                  <div className="mt-4 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setUnansweredWarning(null)}
+                      className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      Stay and answer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConfirmProceed}
+                      className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+                    >
+                      Continue anyway
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <aside className="w-40 shrink-0">
