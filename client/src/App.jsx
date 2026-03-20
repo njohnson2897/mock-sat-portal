@@ -753,20 +753,20 @@ function App() {
           </div>
         </div>
 
-        <div className="mt-10 space-y-4">
-          {sections.map((section) => (
-            <div
-              key={section.key}
-              className="rounded-lg border border-slate-200 bg-white px-5 py-4"
-            >
-              <div className="flex justify-between items-center">
-                <h2 className="font-medium text-slate-800">{section.title}</h2>
-                <span className="text-sm text-slate-500">
+        <div className="mt-10 rounded-lg border border-slate-200 bg-slate-50/50 px-4 py-3">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-slate-500 mb-2">
+            Assessment overview
+          </h2>
+          <div className="space-y-1 text-sm text-slate-600">
+            {sections.map((section) => (
+              <div key={section.key} className="flex justify-between">
+                <span>{section.title}</span>
+                <span className="text-slate-500">
                   {Math.round(section.durationSeconds / 60)} min
                 </span>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         <button
