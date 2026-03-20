@@ -1,9 +1,5 @@
 import { useState } from 'react'
-
-const sections = [
-  { key: 'reading-writing', title: 'Reading & Writing', durationMinutes: 32 },
-  { key: 'math', title: 'Math', durationMinutes: 35 },
-]
+import { sections, questions } from './data/mockAssessment.js'
 
 const MODES = [
   { value: 'full', label: 'Full Practice Test', sectionKeys: ['reading-writing', 'math'] },
@@ -14,9 +10,15 @@ const MODES = [
 function App() {
   const [selectedMode, setSelectedMode] = useState(null)
   const [view, setView] = useState('landing')
+  const [answers, setAnswers] = useState({})
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+  const [currentSectionIndex, setCurrentSectionIndex] = useState(0)
 
   const handleStart = () => {
     if (!selectedMode) return
+    setAnswers({})
+    setCurrentQuestionIndex(0)
+    setCurrentSectionIndex(0)
     setView('assessment')
   }
 
@@ -24,31 +26,124 @@ function App() {
     setView('landing')
   }
 
+  const handleSelectAnswer = (questionId, key) => {
+    setAnswers((prev) => ({ ...prev, [questionId]: key }))
+  }
+
   if (view === 'assessment') {
     const mode = MODES.find((m) => m.value === selectedMode)
-    const includedSections = sections.filter((s) =>
-      mode.sectionKeys.includes(s.key)
-    )
+    const sectionKeys = mode.sectionKeys
+    const currentSectionKey = sectionKeys[currentSectionIndex]
+    const section = sections.find((s) => s.key === currentSectionKey)
+    const sectionQuestions = questions.filter((q) => q.sectionKey === currentSectionKey)
+    const currentQuestion = sectionQuestions[currentQuestionIndex]
+    const totalQuestions = sectionQuestions.length
+    const isFirstQuestion = currentQuestionIndex === 0
+    const isLastQuestion = currentQuestionIndex === totalQuestions - 1
 
     return (
       <div className="min-h-screen bg-slate-50">
-        <main className="mx-auto max-w-xl px-6 py-16">
-          <h1 className="text-2xl font-semibold text-slate-800">
-            Assessment
-          </h1>
-          <p className="mt-4 text-slate-600">
-            Mode: {mode.label}
-          </p>
-          <p className="mt-2 text-slate-600">
-            Sections: {includedSections.map((s) => s.title).join(', ')}
-          </p>
-          <button
-            type="button"
-            onClick={handleBack}
-            className="mt-10 rounded-lg border border-slate-300 bg-white px-4 py-2 font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-          >
-            Back
-          </button>
+        <main className="mx-auto max-w-2xl px-6 py-8">
+          <div className="mb-6 flex items-center justify-between">
+            <h1 className="text-lg font-semibold text-slate-800">
+              {section.title}
+            </h1>
+            <button
+              type="button"
+              onClick={handleBack}
+              className="rounded border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Back
+            </button>
+          </div>
+
+          <div className="flex gap-8">
+            <div className="flex-1">
+              <p className="mb-4 text-sm text-slate-500">
+                Question {currentQuestionIndex + 1} of {totalQuestions}
+              </p>
+              <div className="rounded-lg border border-slate-200 bg-white p-6">
+                <p className="mb-6 text-slate-800 leading-relaxed">
+                  {currentQuestion.prompt}
+                </p>
+                <div className="space-y-3">
+                  {currentQuestion.options.map((opt) => (
+                    <label
+                      key={opt.key}
+                      className={`flex items-start gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors ${
+                        answers[currentQuestion.id] === opt.key
+                          ? 'border-slate-800 bg-slate-50 ring-2 ring-slate-800 ring-offset-1'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name={currentQuestion.id}
+                        value={opt.key}
+                        checked={answers[currentQuestion.id] === opt.key}
+                        onChange={() => handleSelectAnswer(currentQuestion.id, opt.key)}
+                        className="mt-1 h-4 w-4 text-slate-800"
+                      />
+                      <span className="text-slate-800">
+                        <span className="font-medium">{opt.key}.</span> {opt.text}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-between">
+                <button
+                  type="button"
+                  onClick={() => setCurrentQuestionIndex((i) => Math.max(0, i - 1))}
+                  disabled={isFirstQuestion}
+                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCurrentQuestionIndex((i) =>
+                      Math.min(totalQuestions - 1, i + 1)
+                    )
+                  }
+                  disabled={isLastQuestion}
+                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+
+            <aside className="w-40 shrink-0">
+              <h2 className="mb-3 text-sm font-medium text-slate-700">
+                Question Overview
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {sectionQuestions.map((q, idx) => {
+                  const isCurrent = idx === currentQuestionIndex
+                  const isAnswered = q.id in answers
+                  return (
+                    <button
+                      key={q.id}
+                      type="button"
+                      onClick={() => setCurrentQuestionIndex(idx)}
+                      className={`h-9 w-9 rounded text-sm font-medium transition-colors ${
+                        isCurrent
+                          ? 'bg-slate-800 text-white ring-2 ring-slate-800 ring-offset-2'
+                          : isAnswered
+                          ? 'border border-slate-400 bg-slate-100 text-slate-800'
+                          : 'border border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      {idx + 1}
+                    </button>
+                  )
+                })}
+              </div>
+            </aside>
+          </div>
         </main>
       </div>
     )
@@ -103,7 +198,7 @@ function App() {
               <div className="flex justify-between items-center">
                 <h2 className="font-medium text-slate-800">{section.title}</h2>
                 <span className="text-sm text-slate-500">
-                  {section.durationMinutes} min
+                  {Math.round(section.durationSeconds / 60)} min
                 </span>
               </div>
             </div>
