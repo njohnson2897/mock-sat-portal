@@ -2,7 +2,7 @@
 
 ## Live Demo
 
-[add URL once deployed]
+https://mock-sat-portal-zeta.vercel.app/
 
 ## Overview
 
