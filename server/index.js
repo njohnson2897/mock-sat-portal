@@ -23,6 +23,61 @@ app.get('/api/test', (req, res) => {
   res.json({ sections, questions })
 })
 
+app.get('/api/history', async (req, res) => {
+  try {
+    const countResult = await pool.query(
+      'SELECT COUNT(*)::int as total FROM attempts'
+    )
+    const totalAttempts = countResult.rows[0]?.total ?? 0
+
+    const bestResult = await pool.query(`
+      SELECT DISTINCT ON (section_key) section_key, correct_count as correct, total_questions as total
+      FROM attempt_section_results
+      ORDER BY section_key, correct_count DESC
+    `)
+    const bestScores = {}
+    for (const row of bestResult.rows) {
+      bestScores[row.section_key] = {
+        correct: row.correct,
+        total: row.total,
+      }
+    }
+
+    const rankedResult = await pool.query(`
+      WITH ranked AS (
+        SELECT asr.section_key, asr.correct_count, asr.total_questions,
+               ROW_NUMBER() OVER (PARTITION BY section_key ORDER BY a.completed_at DESC NULLS LAST) as rn
+        FROM attempt_section_results asr
+        JOIN attempts a ON a.id = asr.attempt_id
+      )
+      SELECT section_key, correct_count, total_questions, rn
+      FROM ranked
+      WHERE rn <= 2
+    `)
+    const latestVsPrevious = {}
+    for (const row of rankedResult.rows) {
+      const entry = { correct: row.correct_count, total: row.total_questions }
+      if (!latestVsPrevious[row.section_key]) {
+        latestVsPrevious[row.section_key] = {}
+      }
+      if (row.rn === 1) {
+        latestVsPrevious[row.section_key].latest = entry
+      } else {
+        latestVsPrevious[row.section_key].previous = entry
+      }
+    }
+
+    res.json({
+      totalAttempts,
+      bestScores,
+      latestVsPrevious,
+    })
+  } catch (err) {
+    console.error('Failed to fetch history:', err)
+    res.status(500).json({ error: 'Failed to load history' })
+  }
+})
+
 app.post('/api/score', async (req, res) => {
   const { answers, sectionKeys } = req.body || {}
   if (!answers || typeof answers !== 'object') {

@@ -24,6 +24,9 @@ function App() {
   const [results, setResults] = useState(null)
   const [resultsLoading, setResultsLoading] = useState(false)
   const [resultsError, setResultsError] = useState(null)
+  const [history, setHistory] = useState(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyError, setHistoryError] = useState(null)
 
   // Sync timer to current section duration when entering assessment or changing section
   useEffect(() => {
@@ -59,6 +62,21 @@ function App() {
     }
   }, [view, remainingSeconds, selectedMode, currentSectionIndex])
 
+  // Fetch history when results screen is shown
+  useEffect(() => {
+    if (view !== 'completion' || !results) return
+    setHistoryLoading(true)
+    setHistoryError(null)
+    fetch('/api/history')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.error) throw new Error(data.error)
+        setHistory(data)
+      })
+      .catch((err) => setHistoryError(err.message || 'Failed to load history'))
+      .finally(() => setHistoryLoading(false))
+  }, [view, results])
+
   const handleStart = () => {
     if (!selectedMode) return
     setAnswers({})
@@ -74,6 +92,7 @@ function App() {
   const handleBack = () => {
     setResults(null)
     setResultsError(null)
+    setHistory(null)
     setView('landing')
   }
 
@@ -373,6 +392,63 @@ function App() {
                     Prioritize practice in <strong>{results.weakestSkill}</strong>
                     —it has the most room for improvement.
                   </p>
+                </div>
+              )}
+
+              {historyLoading && (
+                <div className="rounded-lg border border-slate-200 bg-white p-4">
+                  <p className="text-sm text-slate-500">Loading progress...</p>
+                </div>
+              )}
+              {historyError && (
+                <div className="rounded-lg border border-slate-200 bg-white p-4">
+                  <p className="text-sm text-slate-500">{historyError}</p>
+                </div>
+              )}
+              {history && !historyLoading && history.totalAttempts > 0 && (
+                <div className="rounded-lg border border-slate-200 bg-white p-4">
+                  <h2 className="text-sm font-medium text-slate-700 mb-3">
+                    Progress over time
+                  </h2>
+                  <p className="text-xs text-slate-500 mb-3">
+                    {history.totalAttempts} attempt
+                    {history.totalAttempts !== 1 ? 's' : ''} completed
+                  </p>
+                  <div className="space-y-2 text-sm">
+                    {results.sections.map((sec) => {
+                      const key = sec.sectionKey
+                      const best = history.bestScores?.[key]
+                      const lvp = history.latestVsPrevious?.[key]
+                      const hasBest = best && best.correct != null && best.total != null
+                      const hasLvp = lvp?.latest && lvp?.previous
+                      if (!hasBest && !hasLvp) {
+                        return (
+                          <div key={key} className="flex justify-between items-center py-1">
+                            <span className="text-slate-700">{sec.sectionTitle}</span>
+                            <span className="text-xs text-slate-500">No history yet</span>
+                          </div>
+                        )
+                      }
+                      return (
+                        <div key={key} className="flex flex-col gap-0.5 py-1">
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-700">{sec.sectionTitle}</span>
+                            {hasBest && (
+                              <span className="text-slate-600">
+                                Best: {best.correct}/{best.total}
+                              </span>
+                            )}
+                          </div>
+                          {hasLvp && (
+                            <p className="text-xs text-slate-500">
+                              Latest {lvp.latest.correct}/{lvp.latest.total} vs
+                              previous {lvp.previous.correct}/{lvp.previous.total}
+                            </p>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
 
