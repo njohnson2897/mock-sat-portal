@@ -1,4 +1,5 @@
 import express from 'express'
+import { sections, questions } from './data/mockAssessment.js'
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -15,6 +16,10 @@ app.use((req, res, next) => {
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' })
+})
+
+app.get('/api/test', (req, res) => {
+  res.json({ sections, questions })
 })
 
 app.listen(PORT, () => {
