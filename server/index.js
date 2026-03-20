@@ -1,5 +1,6 @@
 import express from 'express'
 import { sections, questions } from './data/mockAssessment.js'
+import { pool } from './db/connection.js'
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -22,7 +23,7 @@ app.get('/api/test', (req, res) => {
   res.json({ sections, questions })
 })
 
-app.post('/api/score', (req, res) => {
+app.post('/api/score', async (req, res) => {
   const { answers, sectionKeys } = req.body || {}
   if (!answers || typeof answers !== 'object') {
     return res.status(400).json({ error: 'Missing or invalid answers' })
@@ -60,33 +61,79 @@ app.post('/api/score', (req, res) => {
     if (isCorrect) skillCounts[skillTag].correct++
   }
 
-  const sectionsResult = Object.entries(sectionCounts).map(([key, counts]) => ({
-    sectionKey: key,
-    sectionTitle: sectionMap[key]?.title ?? key,
-    correct: counts.correct,
-    total: counts.total,
-  }))
+  const overallTotal = includedQuestions.length
 
-  const skillsResult = Object.entries(skillCounts).map(([skillTag, counts]) => ({
-    skillTag,
-    correct: counts.correct,
-    total: counts.total,
-  }))
+  const client = await pool.connect()
+  try {
+    const attemptResult = await client.query(
+      `INSERT INTO attempts (completed_at, overall_correct, overall_total)
+       VALUES (NOW(), $1, $2)
+       RETURNING id`,
+      [overallCorrect, overallTotal]
+    )
+    const attemptId = attemptResult.rows[0].id
 
-  const skillsWithData = skillsResult.filter((s) => s.total > 0)
-  const sorted = [...skillsWithData].sort(
-    (a, b) => (b.correct / b.total) - (a.correct / a.total)
-  )
-  const strongestSkill = sorted[0]?.skillTag ?? null
-  const weakestSkill = sorted[sorted.length - 1]?.skillTag ?? null
+    for (const [sectionKey, counts] of Object.entries(sectionCounts)) {
+      await client.query(
+        `INSERT INTO attempt_section_results (attempt_id, section_key, correct_count, total_questions, time_spent_seconds)
+         VALUES ($1, $2, $3, $4, 0)`,
+        [attemptId, sectionKey, counts.correct, counts.total]
+      )
+    }
 
-  res.json({
-    overall: { correct: overallCorrect, total: includedQuestions.length },
-    sections: sectionsResult,
-    skills: skillsResult,
-    strongestSkill,
-    weakestSkill,
-  })
+    for (const question of includedQuestions) {
+      const selectedAnswer = answers[question.id]
+      const isCorrect =
+        selectedAnswer != null && selectedAnswer === question.correctAnswer
+      await client.query(
+        `INSERT INTO attempt_answers (attempt_id, question_id, section_key, selected_answer, is_correct)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          attemptId,
+          question.id,
+          question.sectionKey,
+          selectedAnswer ?? null,
+          isCorrect,
+        ]
+      )
+    }
+
+    const sectionsResult = Object.entries(sectionCounts).map(
+      ([key, counts]) => ({
+        sectionKey: key,
+        sectionTitle: sectionMap[key]?.title ?? key,
+        correct: counts.correct,
+        total: counts.total,
+      })
+    )
+
+    const skillsResult = Object.entries(skillCounts).map(([skillTag, counts]) => ({
+      skillTag,
+      correct: counts.correct,
+      total: counts.total,
+    }))
+
+    const skillsWithData = skillsResult.filter((s) => s.total > 0)
+    const sorted = [...skillsWithData].sort(
+      (a, b) => (b.correct / b.total) - (a.correct / a.total)
+    )
+    const strongestSkill = sorted[0]?.skillTag ?? null
+    const weakestSkill = sorted[sorted.length - 1]?.skillTag ?? null
+
+    res.json({
+      attemptId,
+      overall: { correct: overallCorrect, total: overallTotal },
+      sections: sectionsResult,
+      skills: skillsResult,
+      strongestSkill,
+      weakestSkill,
+    })
+  } catch (err) {
+    console.error('Failed to persist attempt:', err)
+    res.status(500).json({ error: 'Failed to save attempt' })
+  } finally {
+    client.release()
+  }
 })
 
 app.listen(PORT, () => {

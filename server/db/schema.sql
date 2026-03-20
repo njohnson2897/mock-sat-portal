@@ -23,6 +23,6 @@ CREATE TABLE attempt_answers (
   attempt_id INTEGER NOT NULL REFERENCES attempts(id) ON DELETE CASCADE,
   question_id VARCHAR(50) NOT NULL,
   section_key VARCHAR(50) NOT NULL,
-  selected_answer CHAR(1) NOT NULL,
+  selected_answer CHAR(1),
   is_correct BOOLEAN NOT NULL DEFAULT FALSE
 );
