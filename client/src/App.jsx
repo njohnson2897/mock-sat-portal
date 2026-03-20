@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { sections, questions } from './data/mockAssessment.js'
 
+const API_BASE = import.meta.env.VITE_API_URL || ''
+
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60)
   const s = seconds % 60
@@ -68,7 +70,7 @@ function App() {
     if (view !== 'completion' || !results) return
     setHistoryLoading(true)
     setHistoryError(null)
-    fetch('/api/history')
+    fetch(`${API_BASE}/api/history`)
       .then((res) => res.json())
       .then((data) => {
         if (data.error) throw new Error(data.error)
@@ -105,7 +107,7 @@ function App() {
     setResultsLoading(true)
     setResultsError(null)
     try {
-      const res = await fetch('/api/score', {
+      const res = await fetch(`${API_BASE}/api/score`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answers: answersToSubmit, sectionKeys }),
