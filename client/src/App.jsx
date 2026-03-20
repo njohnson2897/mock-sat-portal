@@ -21,6 +21,9 @@ function App() {
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0)
   const [remainingSeconds, setRemainingSeconds] = useState(null)
   const [unansweredWarning, setUnansweredWarning] = useState(null)
+  const [results, setResults] = useState(null)
+  const [resultsLoading, setResultsLoading] = useState(false)
+  const [resultsError, setResultsError] = useState(null)
 
   // Sync timer to current section duration when entering assessment or changing section
   useEffect(() => {
@@ -49,7 +52,7 @@ function App() {
     const sectionKeys = mode.sectionKeys
     const isLastSection = currentSectionIndex === sectionKeys.length - 1
     if (isLastSection) {
-      setView('completion')
+      completeAssessment(answers, sectionKeys)
     } else {
       setCurrentSectionIndex((i) => i + 1)
       setCurrentQuestionIndex(0)
@@ -61,11 +64,39 @@ function App() {
     setAnswers({})
     setCurrentQuestionIndex(0)
     setCurrentSectionIndex(0)
+    setResults(null)
+    setResultsError(null)
+    setUnansweredWarning(null)
+    setRemainingSeconds(null)
     setView('assessment')
   }
 
   const handleBack = () => {
+    setResults(null)
+    setResultsError(null)
     setView('landing')
+  }
+
+  const completeAssessment = async (answersToSubmit, sectionKeys) => {
+    setUnansweredWarning(null)
+    setResultsLoading(true)
+    setResultsError(null)
+    try {
+      const res = await fetch('/api/score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers: answersToSubmit, sectionKeys }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to score')
+      setResults(data)
+      setView('completion')
+    } catch (err) {
+      setResultsError(err.message || 'Unable to load results')
+      setView('completion')
+    } finally {
+      setResultsLoading(false)
+    }
   }
 
   const handleNextSection = () => {
@@ -75,8 +106,8 @@ function App() {
   }
 
   const handleFinish = () => {
-    setUnansweredWarning(null)
-    setView('completion')
+    const mode = MODES.find((m) => m.value === selectedMode)
+    completeAssessment(answers, mode.sectionKeys)
   }
 
   const handleAttemptNextSection = () => {
@@ -106,8 +137,11 @@ function App() {
   }
 
   const handleConfirmProceed = () => {
-    if (unansweredWarning?.action === 'nextSection') handleNextSection()
-    else if (unansweredWarning?.action === 'finish') handleFinish()
+    if (unansweredWarning?.action === 'nextSection') {
+      handleNextSection()
+    } else if (unansweredWarning?.action === 'finish') {
+      handleFinish()
+    }
     setUnansweredWarning(null)
   }
 
@@ -123,16 +157,113 @@ function App() {
           <h1 className="text-2xl font-semibold text-slate-800">
             Assessment Complete
           </h1>
-          <p className="mt-4 text-slate-600">
-            You have completed the {mode.label}.
-          </p>
-          <button
-            type="button"
-            onClick={handleBack}
-            className="mt-10 rounded-lg bg-slate-800 px-4 py-3 font-medium text-white hover:bg-slate-700"
-          >
-            Back to Setup
-          </button>
+
+          {resultsLoading && (
+            <p className="mt-6 text-slate-600">Loading your results...</p>
+          )}
+
+          {resultsError && !resultsLoading && (
+            <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4">
+              <p className="text-slate-800">{resultsError}</p>
+              <button
+                type="button"
+                onClick={handleBack}
+                className="mt-4 rounded-lg bg-slate-800 px-4 py-2 font-medium text-white hover:bg-slate-700"
+              >
+                Back to Setup
+              </button>
+            </div>
+          )}
+
+          {results && !resultsLoading && (
+            <div className="mt-6 space-y-6">
+              <div className="rounded-lg border border-slate-200 bg-white p-5">
+                <h2 className="text-sm font-medium text-slate-500">
+                  Overall score
+                </h2>
+                <p className="mt-1 text-2xl font-semibold text-slate-800">
+                  {results.overall.correct} / {results.overall.total}
+                </p>
+              </div>
+
+              <div>
+                <h2 className="text-sm font-medium text-slate-700 mb-3">
+                  By section
+                </h2>
+                <div className="space-y-3">
+                  {results.sections.map((sec) => (
+                    <div
+                      key={sec.sectionKey}
+                      className="rounded-lg border border-slate-200 bg-white px-4 py-3 flex justify-between items-center"
+                    >
+                      <span className="font-medium text-slate-800">
+                        {sec.sectionTitle}
+                      </span>
+                      <span className="text-slate-600">
+                        {sec.correct} / {sec.total}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h2 className="text-sm font-medium text-slate-700 mb-3">
+                  By skill
+                </h2>
+                <div className="space-y-2">
+                  {results.skills.map((skill) => (
+                    <div
+                      key={skill.skillTag}
+                      className="rounded-lg border border-slate-200 bg-white px-4 py-2 flex justify-between items-center"
+                    >
+                      <span className="text-slate-800">{skill.skillTag}</span>
+                      <span className="text-slate-600 text-sm">
+                        {skill.correct} / {skill.total}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {results.strongestSkill && (
+                <div className="rounded-lg border border-slate-200 bg-white p-4">
+                  <h2 className="text-sm font-medium text-slate-500">
+                    Strongest skill
+                  </h2>
+                  <p className="mt-1 font-medium text-slate-800">
+                    {results.strongestSkill}
+                  </p>
+                </div>
+              )}
+
+              {results.weakestSkill && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                  <h2 className="text-sm font-medium text-slate-700">
+                    What to focus on next
+                  </h2>
+                  <p className="mt-1 text-slate-800">
+                    Prioritize practice in <strong>{results.weakestSkill}</strong>
+                    —it has the most room for improvement.
+                  </p>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleBack}
+                className="w-full rounded-lg bg-slate-800 px-4 py-3 font-medium text-white hover:bg-slate-700"
+              >
+                Back to Setup
+              </button>
+            </div>
+          )}
+
+          {!results && !resultsError && !resultsLoading && (
+            <p className="mt-4 text-slate-600">
+              You have completed the {mode.label}.
+            </p>
+          )}
         </main>
       </div>
     )
@@ -141,6 +272,14 @@ function App() {
   if (view === 'assessment') {
     const mode = MODES.find((m) => m.value === selectedMode)
     const sectionKeys = mode.sectionKeys
+
+    if (resultsLoading) {
+      return (
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          <p className="text-slate-600">Loading your results...</p>
+        </div>
+      )
+    }
     const currentSectionKey = sectionKeys[currentSectionIndex]
     const section = sections.find((s) => s.key === currentSectionKey)
     const sectionQuestions = questions.filter((q) => q.sectionKey === currentSectionKey)
