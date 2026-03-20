@@ -26,8 +26,40 @@ function App() {
     setView('landing')
   }
 
+  const handleNextSection = () => {
+    setCurrentSectionIndex((i) => i + 1)
+    setCurrentQuestionIndex(0)
+  }
+
+  const handleFinish = () => {
+    setView('completion')
+  }
+
   const handleSelectAnswer = (questionId, key) => {
     setAnswers((prev) => ({ ...prev, [questionId]: key }))
+  }
+
+  if (view === 'completion') {
+    const mode = MODES.find((m) => m.value === selectedMode)
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <main className="mx-auto max-w-xl px-6 py-16">
+          <h1 className="text-2xl font-semibold text-slate-800">
+            Assessment Complete
+          </h1>
+          <p className="mt-4 text-slate-600">
+            You have completed the {mode.label}.
+          </p>
+          <button
+            type="button"
+            onClick={handleBack}
+            className="mt-10 rounded-lg bg-slate-800 px-4 py-3 font-medium text-white hover:bg-slate-700"
+          >
+            Back to Setup
+          </button>
+        </main>
+      </div>
+    )
   }
 
   if (view === 'assessment') {
@@ -40,6 +72,8 @@ function App() {
     const totalQuestions = sectionQuestions.length
     const isFirstQuestion = currentQuestionIndex === 0
     const isLastQuestion = currentQuestionIndex === totalQuestions - 1
+    const isLastSection = currentSectionIndex === sectionKeys.length - 1
+    const hasNextSection = currentSectionIndex < sectionKeys.length - 1
 
     return (
       <div className="min-h-screen bg-slate-50">
@@ -101,18 +135,37 @@ function App() {
                 >
                   Previous
                 </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setCurrentQuestionIndex((i) =>
-                      Math.min(totalQuestions - 1, i + 1)
-                    )
-                  }
-                  disabled={isLastQuestion}
-                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
+                {isLastQuestion ? (
+                  hasNextSection ? (
+                    <button
+                      type="button"
+                      onClick={handleNextSection}
+                      className="rounded-lg bg-slate-800 px-4 py-2 font-medium text-white hover:bg-slate-700"
+                    >
+                      Continue to Next Section
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleFinish}
+                      className="rounded-lg bg-slate-800 px-4 py-2 font-medium text-white hover:bg-slate-700"
+                    >
+                      Finish Assessment
+                    </button>
+                  )
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCurrentQuestionIndex((i) =>
+                        Math.min(totalQuestions - 1, i + 1)
+                      )
+                    }
+                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    Next
+                  </button>
+                )}
               </div>
             </div>
 
